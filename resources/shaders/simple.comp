@@ -2,11 +2,14 @@
 
 layout( local_size_x = 32 ) in;
 
+#define HALF_WINDOW_SZ (3)
+#define WINDOW_SZ (2 * HALF_WINDOW_SZ + 1)
+
 layout( push_constant ) uniform params {
   uint len;
 } PushConstant;
 
-layout(std430, binding = 0) buffer a 
+layout(std430, binding = 0) buffer a
 {
     float A[];
 };
@@ -16,15 +19,16 @@ layout(std430, binding = 1) buffer b
     float B[];
 };
 
-layout(std430, binding = 2) buffer Sum
-{
-    float sum[];
-};
-
 void main() 
 {
     uint idx = gl_GlobalInvocationID.x;
     if (idx < PushConstant.len) {
-        sum[idx] = A[idx] + B[idx];
+        uint start = idx - min(idx, HALF_WINDOW_SZ);
+        uint end = min(idx + HALF_WINDOW_SZ + 1, PushConstant.len);
+        float win_sum = 0.0;
+        for (uint i = start; i < end; ++i){
+            win_sum += A[i];
+        }
+        B[idx] = A[idx] - win_sum / WINDOW_SZ;
     }
 }

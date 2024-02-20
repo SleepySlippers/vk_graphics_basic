@@ -1,6 +1,8 @@
 #ifndef SIMPLE_COMPUTE_H
 #define SIMPLE_COMPUTE_H
 
+#include <utility>
+#include <vector>
 #define VK_NO_PROTOTYPES
 #include "../../render/compute_common.h"
 #include "../resources/shaders/common.h"
@@ -10,6 +12,10 @@
 #include <string>
 #include <iostream>
 #include <memory>
+#include <chrono>
+#include <type_traits>
+
+using TimeT = std::chrono::duration<double>;
 
 class SimpleCompute : public ICompute
 {
@@ -21,6 +27,21 @@ public:
   void InitVulkan(const char** a_instanceExtensions, uint32_t a_instanceExtensionsCount, uint32_t a_deviceId) override;
 
   void Execute() override;
+
+  TimeT GetComputationTime() const {
+    return computation_time;
+  }
+
+  template<typename T>
+  void SetValues(T&& new_values) {
+    static_assert(std::is_same_v<typename std::remove_reference<T>::type, std::vector<float>>, "Argument must be a std::vector<float>");
+    assert(new_values.size() == m_length);
+    in_values = std::forward<T>(new_values);
+  }
+
+  const auto& GetOutValues() const {
+    return out_values;
+  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -73,13 +94,17 @@ private:
   std::vector<const char*> m_validationLayers;
   std::shared_ptr<vk_utils::ICopyEngine> m_pCopyHelper;
 
-  VkDescriptorSet       m_sumDS; 
-  VkDescriptorSetLayout m_sumDSLayout = nullptr;
+  VkDescriptorSet       m_avergeDS; 
+  VkDescriptorSetLayout m_averageDSLayout = nullptr;
   
   VkPipeline m_pipeline;
   VkPipelineLayout m_layout;
 
-  VkBuffer m_A, m_B, m_sum;
+  TimeT computation_time = {};
+
+  VkBuffer in, out;
+
+  std::vector<float> in_values, out_values;
  
   void CreateInstance();
   void CreateDevice(uint32_t a_deviceId);
