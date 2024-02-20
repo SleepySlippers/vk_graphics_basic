@@ -12,6 +12,7 @@ layout(push_constant) uniform params_t
 {
     mat4 mProjView;
     mat4 mModel;
+    float iTime;
 } params;
 
 
@@ -35,5 +36,9 @@ void main(void)
     vOut.wTangent = normalize(mat3(transpose(inverse(params.mModel))) * wTang.xyz);
     vOut.texCoord = vTexCoordAndTang.xy;
 
+    vOut.wPos.x += sin((vOut.wPos.y + params.iTime / 10.) * 100.) / 50.;
+
     gl_Position   = params.mProjView * vec4(vOut.wPos, 1.0);
+
+    gl_Position.x += cos(gl_Position.y + params.iTime);
 }

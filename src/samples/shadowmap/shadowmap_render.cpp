@@ -10,6 +10,7 @@
 #include <etna/RenderTargetStates.hpp>
 #include <vulkan/vulkan_core.h>
 
+#include <GLFW/glfw3.h>
 
 /// RESOURCE ALLOCATION
 
@@ -137,6 +138,7 @@ void SimpleShadowmapRender::DrawSceneCmd(VkCommandBuffer a_cmdBuff, const float4
   vkCmdBindVertexBuffers(a_cmdBuff, 0, 1, &vertexBuf, &zero_offset);
   vkCmdBindIndexBuffer(a_cmdBuff, indexBuf, 0, VK_INDEX_TYPE_UINT32);
 
+  pushConst2M.iTime = glfwGetTime();
   pushConst2M.projView = a_wvp;
   for (uint32_t i = 0; i < m_pScnMgr->InstancesNum(); ++i)
   {
