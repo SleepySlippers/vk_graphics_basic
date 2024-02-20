@@ -22,7 +22,7 @@ std::mt19937 gen{}; // Standard mersenne_twister_engine seeded with rd()
 
 std::vector<float> PrepareRandomData(int length) {
   std::vector<float> res(length);
-  std::uniform_real_distribution<float> dis(-1e2, 1e2);
+  std::uniform_real_distribution<float> dis(-10, 10);
   for (auto &it : res) {
     it = dis(gen);
   }
@@ -64,7 +64,7 @@ void ComputeOnCPU(const std::vector<float> &in, std::vector<float> &out) {
 }
 
 void LogInfo(const std::vector<float> &res, std::string mode, TimeT duration) {
-  auto sum = std::accumulate(res.begin(), res.end(), 0.);
+  auto sum = std::accumulate(res.begin(), res.end(), 0.f);
   std::cout << mode << "  sum: " << sum << "\n";
   std::cout << mode << " time: " << duration.count() << "sec"
             << "\n";
@@ -84,12 +84,28 @@ int main() {
       auto start = std::chrono::steady_clock::now();
       ComputeOnCPU(data, out);
       LogInfo(out, "CPU", std::chrono::steady_clock::now() - start);
-    }
-    {
+
       app->SetValues(data);
       app->Execute();
       auto gpu_out = app->GetOutValues();
       LogInfo(gpu_out, "GPU", app->GetComputationTime());
+
+      const float EPS = 1e-4;
+      for (int j = 0; j < LENGTH; ++j) {
+        auto diff = out[j] - gpu_out[j];
+        if (fabs(diff) > EPS) {
+          std::cout << "fiasco: " << j << "-th element differs by " << diff
+                    << "\n\n";
+          break;
+        }
+      }
+
+      std::cout
+          << "if fiasco did not happen then each elements in resulted arrays "
+             "differs less than "
+          << EPS
+          << " due to errors sum up => absolute error of resulted sums can be "
+          << EPS * LENGTH << "\n\n";
     }
   }
 
