@@ -5,6 +5,7 @@
 
 SimpleShadowmapRender::SimpleShadowmapRender(uint32_t a_width, uint32_t a_height) : m_width(a_width), m_height(a_height)
 {
+  m_enabledDeviceFeatures.geometryShader = true;
   m_uniforms.baseColor = LiteMath::float3(0.9f, 0.92f, 1.0f);
 }
 
