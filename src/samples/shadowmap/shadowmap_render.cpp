@@ -163,7 +163,8 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
   //// draw scene to shadowmap
   //
   {
-    etna::RenderTargetState renderTargets(a_cmdBuff, {0, 0, 2048, 2048}, {}, {.image = shadowMap.get(), .view = shadowMap.getView({})});
+    auto depth_attachment = etna::RenderTargetState::AttachmentParams{shadowMap.get(), shadowMap.getView({})};
+    etna::RenderTargetState renderTargets(a_cmdBuff, {0, 0, 2048, 2048}, {}, depth_attachment);
 
     vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_shadowPipeline.getVkPipeline());
     DrawSceneCmd(a_cmdBuff, m_lightMatrix, m_shadowPipeline.getVkPipelineLayout());
@@ -182,9 +183,9 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
 
     VkDescriptorSet vkSet = set.getVkSet();
 
-    etna::RenderTargetState renderTargets(a_cmdBuff, {0, 0, m_width, m_height},
-      {{.image = a_targetImage, .view = a_targetImageView}},
-      {.image = mainViewDepth.get(), .view = mainViewDepth.getView({})});
+    auto color_attachment = etna::RenderTargetState::AttachmentParams{a_targetImage, a_targetImageView};
+    auto depth_attachment = etna::RenderTargetState::AttachmentParams{mainViewDepth.get(), mainViewDepth.getView({})};
+    etna::RenderTargetState renderTargets(a_cmdBuff, {0, 0, m_width, m_height}, {color_attachment}, depth_attachment);
 
     vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_basicForwardPipeline.getVkPipeline());
     vkCmdBindDescriptorSets(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
