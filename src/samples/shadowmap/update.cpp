@@ -1,7 +1,9 @@
 #include "../../utils/input_definitions.h"
 
+#include "LiteMath.h"
 #include "etna/Etna.hpp"
 #include "shadowmap_render.h"
+#include <cmath>
 
 void SimpleShadowmapRender::UpdateCamera(const Camera* cams, uint32_t a_camsNumber)
 {
@@ -44,6 +46,10 @@ void SimpleShadowmapRender::UpdateUniformBuffer(float a_time)
   m_uniforms.lightMatrix = m_lightMatrix;
   m_uniforms.lightPos    = m_light.cam.pos; //LiteMath::float3(sinf(a_time), 1.0f, cosf(a_time));
   m_uniforms.time        = a_time;
+  m_light.innerAngle = std::min(m_light.outerAngle, m_light.innerAngle);
+  m_uniforms.innerRadAngle = LiteMath::DEG_TO_RAD * m_light.innerAngle;
+  m_uniforms.outerRadAngle = LiteMath::DEG_TO_RAD * m_light.outerAngle;
+  m_uniforms.lightDir    = m_light.cam.forward();
 
   memcpy(m_uboMappedMem, &m_uniforms, sizeof(m_uniforms));
 }
