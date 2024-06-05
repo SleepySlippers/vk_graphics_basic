@@ -23,6 +23,18 @@ void SimpleShadowmapRender::AllocateResources()
     .imageUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment
   });
 
+  doubledViewDepth = m_context->createImage(etna::Image::CreateInfo{
+    .extent     = vk::Extent3D{ m_width * 2, m_height * 2, 1 },
+    .name       = "doubled_view_depth",
+    .format     = vk::Format::eD32Sfloat,
+    .imageUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment });
+
+  doubledTempTex = m_context->createImage(etna::Image::CreateInfo{
+    .extent     = vk::Extent3D{ m_width * 2, m_height * 2, 1 },
+    .name       = "doubled_temp_tex",
+    .format     = static_cast<vk::Format>(m_swapchain.GetFormat()),
+    .imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc });
+
   shadowMap = m_context->createImage(etna::Image::CreateInfo
   {
     .extent = vk::Extent3D{2048, 2048, 1},
@@ -170,7 +182,17 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
     DrawSceneCmd(a_cmdBuff, m_lightMatrix, m_shadowPipeline.getVkPipelineLayout());
   }
 
-  //// draw final scene to screen
+  auto depth                  = etna::RenderTargetState::AttachmentParams{ mainViewDepth.get(), mainViewDepth.getView({}) };
+  auto final_scene_out        = etna::RenderTargetState::AttachmentParams{ a_targetImage, a_targetImageView };
+  vk::Rect2D final_scene_size = { { 0, 0 }, { m_width, m_height } };
+  if (useSSAA)
+  {
+    depth            = etna::RenderTargetState::AttachmentParams{ doubledViewDepth.get(), doubledViewDepth.getView({}) };
+    final_scene_out  = etna::RenderTargetState::AttachmentParams{ doubledTempTex.get(), doubledTempTex.getView({}) };
+    final_scene_size = vk::Rect2D{ { 0, 0 }, { m_width * 2, m_height * 2 } };
+  }
+
+  //// draw final scene
   //
   {
     auto simpleMaterialInfo = etna::get_shader_program("simple_material");
@@ -183,15 +205,31 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
 
     VkDescriptorSet vkSet = set.getVkSet();
 
-    auto color_attachment = etna::RenderTargetState::AttachmentParams{a_targetImage, a_targetImageView};
-    auto depth_attachment = etna::RenderTargetState::AttachmentParams{mainViewDepth.get(), mainViewDepth.getView({})};
-    etna::RenderTargetState renderTargets(a_cmdBuff, {0, 0, m_width, m_height}, {color_attachment}, depth_attachment);
+    etna::RenderTargetState renderTargets(a_cmdBuff, final_scene_size, { final_scene_out }, depth);
 
     vkCmdBindPipeline(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, m_basicForwardPipeline.getVkPipeline());
     vkCmdBindDescriptorSets(a_cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
       m_basicForwardPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, VK_NULL_HANDLE);
 
     DrawSceneCmd(a_cmdBuff, m_worldViewProj, m_basicForwardPipeline.getVkPipelineLayout());
+  }
+
+  if (useSSAA)
+  {
+    VkImageBlit region{
+      { VK_IMAGE_ASPECT_COLOR_BIT,
+        0,
+        0,
+        1 },
+      { { 0, 0, 0 }, { static_cast<int32_t>(m_width * 2), static_cast<int32_t>(m_height * 2), 1 } },
+      { VK_IMAGE_ASPECT_COLOR_BIT,
+        0,
+        0,
+        1 },
+      { { 0, 0, 0 }, { static_cast<int32_t>(m_width), static_cast<int32_t>(m_height), 1 } },
+    };
+    VkImageBlit regions[] = { region };
+    vkCmdBlitImage(a_cmdBuff, doubledTempTex.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, a_targetImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, sizeof(regions) / sizeof(region), regions, VK_FILTER_LINEAR);
   }
 
   if(m_input.drawFSQuad)

@@ -46,6 +46,8 @@ public:
 private:
   etna::GlobalContext* m_context;
   etna::Image mainViewDepth;
+  etna::Image doubledViewDepth;
+  etna::Image doubledTempTex;
   etna::Image shadowMap;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
@@ -73,6 +75,7 @@ private:
   float4x4 m_lightMatrix;    
 
   UniformParams m_uniforms {};
+  bool useSSAA{ false };
   void* m_uboMappedMem = nullptr;
 
   etna::GraphicsPipeline m_basicForwardPipeline {};
