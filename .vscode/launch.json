@@ -44,6 +44,24 @@
             ]
         }
         
+        {
+            "name": "clang++.exe - Build and debug active file",
+            "type": "lldb",
+            "request": "launch",
+            "program": "/home/arseny/projs/mipt/graphics/vk_graphics_basic/bin/shadowmap_renderer",
+            "args": [
+            ],
+            "stopAtEntry": false,
+            "cwd": "/home/arseny/projs/mipt/graphics/vk_graphics_basic/bin",
+            "environment": [],
+            "MIMode": "lldb",
+            "miDebuggerPath": "/home/arseny/.config/Code/User/globalStorage/llvm-vs-code-extensions.vscode-clangd/install/16.0.2/clangd_16.0.2/bin/clangd",
+            "setupCommands": [
+                {
+                    "text": "settings set target.input-path input.txt"
+                }
+            ]
+        }
         
 
     ]
