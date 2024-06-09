@@ -1,0 +1,31 @@
+#version 450
+
+layout(binding = 0, set = 0) uniform sampler2D varianceShadow;
+layout(binding = 1, set = 0) writeonly uniform image2D blurredRes;
+
+void main() {
+    ivec2 pixelLocation = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 resultSize = ivec2(imageSize(blurredRes));
+
+    if (pixelLocation.x >= resultSize.x || pixelLocation.y >= resultSize.y)
+    {
+        return;
+    }
+
+    vec2 uv = (vec2(pixelLocation) + 0.5) / vec2(resultSize);
+
+    vec2 pixOffset = vec2(1.) / vec2(resultSize);
+
+    vec2 sum = vec2(0.);
+    const int N = 3;
+    const int W = N * 2 + 1;
+    for (int i = -N; i <= N; ++i) {
+        for (int j = -N; j <= N; ++j) {
+            vec2 offset = pixOffset * vec2(i, j);
+            sum += texture(varianceShadow, uv + offset).xy;
+        }
+    }
+    sum /= W * W;
+
+    imageStore(blurredRes, pixelLocation, vec4(sum, 0., 0.));
+}
