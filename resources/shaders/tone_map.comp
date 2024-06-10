@@ -1,0 +1,23 @@
+#version 450
+
+layout(binding = 0, set = 0) uniform sampler2D mainView;
+layout(binding = 1, set = 0) writeonly uniform image2D toneMapRes;
+
+void main(){
+    ivec2 pixelLocation = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 resultSize = ivec2(imageSize(toneMapRes));
+
+    if (pixelLocation.x >= resultSize.x || pixelLocation.y >= resultSize.y)
+    {
+        return;
+    }
+
+    vec2 uv = (vec2(pixelLocation) + 0.5) / vec2(resultSize);
+
+    vec4 initial = texture(mainView, uv);
+
+    const float exposure = 2.2;
+    vec4 toneMapped = vec4(vec3(1.) - exp(-exposure * initial.rgb), initial.a);
+
+    imageStore(toneMapRes, pixelLocation, toneMapped);
+}

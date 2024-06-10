@@ -34,6 +34,7 @@ void main()
   const vec4 chartreuse  = vec4(0.5f, 1.0f, 0.0f, 1.0f);
 
   vec4 lightColor1 = mix(dark_violet, chartreuse, abs(sin(Params.time)));
+  lightColor1 *= Params.lightBrightness;
   vec4 lightColor2 = vec4(1.0f, 1.0f, 1.0f, 1.0f);
    
   vec3 lightDir   = normalize(Params.lightPos - surf.wPos);

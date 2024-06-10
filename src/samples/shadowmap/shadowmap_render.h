@@ -5,7 +5,9 @@
 #include "../../render/render_common.h"
 #include "../../render/quad_renderer.h"
 #include "../../../resources/shaders/common.h"
+#include "etna/ComputePipeline.hpp"
 #include "etna/GraphicsPipeline.hpp"
+#include "etna/Image.hpp"
 #include <geom/vk_mesh.h>
 #include <vk_descriptor_sets.h>
 #include <vk_fbuf_attachment.h>
@@ -45,7 +47,9 @@ public:
 
 private:
   etna::GlobalContext* m_context;
+  etna::Image mainView;
   etna::Image mainViewDepth;
+  etna::Image toneMappedView;
   etna::Image shadowMap;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
@@ -77,7 +81,8 @@ private:
 
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
-  
+  etna::ComputePipeline m_toneMapPipeline{};
+
   VkSurfaceKHR m_surface = VK_NULL_HANDLE;
   VulkanSwapChain m_swapchain;
 
@@ -86,6 +91,8 @@ private:
   uint32_t m_height = 1024u;
   uint32_t m_framesInFlight = 2u;
   bool m_vsync = false;
+
+  bool m_useToneMap{ false };
 
   vk::PhysicalDeviceFeatures m_enabledDeviceFeatures = {};
   std::vector<const char*> m_deviceExtensions;
