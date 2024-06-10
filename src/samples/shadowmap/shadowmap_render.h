@@ -93,7 +93,7 @@ private:
   uint32_t m_framesInFlight = 2u;
   bool m_vsync = false;
 
-  bool m_useVSM{ false };
+  bool m_useVSM{ true };
 
   vk::PhysicalDeviceFeatures m_enabledDeviceFeatures = {};
   std::vector<const char*> m_deviceExtensions;
