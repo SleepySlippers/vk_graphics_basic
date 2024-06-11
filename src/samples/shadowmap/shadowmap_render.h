@@ -108,7 +108,7 @@ private:
   {
     ShadowMapCam() 
     {  
-      cam.pos    = float3(4.0f, 4.0f, 4.0f);
+      cam.pos    = float3(2.666f, 0.133f, 0.4f);
       cam.lookAt = float3(0, 0, 0);
       cam.up     = float3(0, 1, 0);
   
@@ -116,8 +116,8 @@ private:
       lightTargetDist = 20.0f;
       usePerspectiveM = true;
 
-      innerAngle = 55.;
-      outerAngle = 56.;
+      innerAngle = 10.;
+      outerAngle = 14.;
     }
 
     float  radius;           ///!< ignored when usePerspectiveM == true 
