@@ -111,7 +111,7 @@ void SimpleShadowmapRender::loadShaders()
     {VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple_shadow.frag.spv", VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple.vert.spv"});
   etna::create_program("simple_shadow", {VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple.vert.spv"});
   etna::create_program(
-    "ssao", { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/ssao.comp.spv" });
+    "ssao", { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/traditional_ssao.comp.spv" });
 }
 
 void SimpleShadowmapRender::SetupSimplePipeline()
