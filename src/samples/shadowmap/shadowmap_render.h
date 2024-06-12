@@ -51,6 +51,8 @@ private:
   etna::Image shadowMap;
   etna::Image mainView;
   etna::Image ssaoRes;
+  etna::Image blurredSsaoRes;
+  etna::Image appliedSsaoRes;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
 
@@ -82,7 +84,10 @@ private:
   etna::GraphicsPipeline m_basicForwardPipeline {};
   etna::GraphicsPipeline m_shadowPipeline {};
   etna::ComputePipeline m_ssaoPipeline {};
-  
+  etna::ComputePipeline m_unconventionalSsaoPipeline{};
+  etna::ComputePipeline m_blurredSsaoPipeline{};
+  etna::ComputePipeline m_appliedSsaoPipeline{};
+
   VkSurfaceKHR m_surface = VK_NULL_HANDLE;
   VulkanSwapChain m_swapchain;
 
@@ -93,6 +98,9 @@ private:
   bool m_vsync = false;
 
   bool m_useSSAO{true};
+  bool m_useBlur{ true };
+  bool m_applySSAO{ true };
+  bool m_useUnconventionalSSAO{ false };
 
   vk::PhysicalDeviceFeatures m_enabledDeviceFeatures = {};
   std::vector<const char*> m_deviceExtensions;

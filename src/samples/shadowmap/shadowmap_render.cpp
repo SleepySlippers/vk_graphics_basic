@@ -50,6 +50,22 @@ void SimpleShadowmapRender::AllocateResources()
                     | vk::ImageUsageFlagBits::eTransferSrc
                     | vk::ImageUsageFlagBits::eStorage });
 
+  blurredSsaoRes = m_context->createImage(
+    etna::Image::CreateInfo{ .extent = vk::Extent3D{ m_width, m_height, 1 },
+      .name                          = "blurred_ssao_res",
+      .format     = static_cast<vk::Format>(m_swapchain.GetFormat()),
+      .imageUsage = vk::ImageUsageFlagBits::eSampled
+                    | vk::ImageUsageFlagBits::eTransferSrc
+                    | vk::ImageUsageFlagBits::eStorage });
+
+  appliedSsaoRes = m_context->createImage(
+    etna::Image::CreateInfo{ .extent = vk::Extent3D{ m_width, m_height, 1 },
+      .name                          = "applied_ssao_res",
+      .format     = static_cast<vk::Format>(m_swapchain.GetFormat()),
+      .imageUsage = vk::ImageUsageFlagBits::eSampled
+                    | vk::ImageUsageFlagBits::eTransferSrc
+                    | vk::ImageUsageFlagBits::eStorage });
+
   defaultSampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "default_sampler"});
   constants = m_context->createBuffer(etna::Buffer::CreateInfo
   {
@@ -110,8 +126,14 @@ void SimpleShadowmapRender::loadShaders()
   etna::create_program("simple_material",
     {VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple_shadow.frag.spv", VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple.vert.spv"});
   etna::create_program("simple_shadow", {VK_GRAPHICS_BASIC_ROOT"/resources/shaders/simple.vert.spv"});
+  etna::create_program("traditional_ssao",
+    { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/traditional_ssao.comp.spv" });
+  etna::create_program("unconventional_ssao",
+    { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/ssao.comp.spv" });
   etna::create_program(
-    "ssao", { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/traditional_ssao.comp.spv" });
+    "blur", { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/blur.comp.spv" });
+  etna::create_program(
+    "apply", { VK_GRAPHICS_BASIC_ROOT "/resources/shaders/apply.comp.spv" });
 }
 
 void SimpleShadowmapRender::SetupSimplePipeline()
@@ -142,7 +164,12 @@ void SimpleShadowmapRender::SetupSimplePipeline()
           .depthAttachmentFormat = vk::Format::eD16Unorm
         }
     });
-  m_ssaoPipeline   = pipelineManager.createComputePipeline("ssao", {});
+  m_ssaoPipeline =
+    pipelineManager.createComputePipeline("traditional_ssao", {});
+  m_unconventionalSsaoPipeline =
+    pipelineManager.createComputePipeline("unconventional_ssao", {});
+  m_blurredSsaoPipeline = pipelineManager.createComputePipeline("blur", {});
+  m_appliedSsaoPipeline = pipelineManager.createComputePipeline("apply", {});
 }
 
 
@@ -230,40 +257,121 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
 
   if (m_useSSAO)
   {
+    auto currentSsao = &ssaoRes;
+    auto result      = &mainView;
     {
-      auto ssaoInfo = etna::get_shader_program("ssao");
+      auto ssaoInfo = !m_useUnconventionalSSAO
+                        ? etna::get_shader_program("traditional_ssao")
+                        : etna::get_shader_program("unconventional_ssao");
+
+      auto ssaoPipe = !m_useUnconventionalSSAO ? &m_ssaoPipeline
+                                               : &m_unconventionalSsaoPipeline;
+
+      result = &ssaoRes;
 
       auto set = etna::create_descriptor_set(ssaoInfo.getDescriptorLayoutId(0),
         a_cmdBuff,
         { etna::Binding{ 0,
-            mainView.genBinding(
-              defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal) },
-          etna::Binding{ 1,
             mainViewDepth.genBinding(
               defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal) },
-          etna::Binding{ 2,
+          etna::Binding{ 1,
             ssaoRes.genBinding(
               defaultSampler.get(), vk::ImageLayout::eGeneral) } });
 
       VkDescriptorSet vkSet = set.getVkSet();
 
-      vkCmdBindPipeline(a_cmdBuff,
-        VK_PIPELINE_BIND_POINT_COMPUTE,
-        m_ssaoPipeline.getVkPipeline());
+      vkCmdBindPipeline(
+        a_cmdBuff, VK_PIPELINE_BIND_POINT_COMPUTE, (*ssaoPipe).getVkPipeline());
       vkCmdBindDescriptorSets(a_cmdBuff,
         VK_PIPELINE_BIND_POINT_COMPUTE,
-        m_ssaoPipeline.getVkPipelineLayout(),
+        (*ssaoPipe).getVkPipelineLayout(),
         0,
         1,
         &vkSet,
         0,
         VK_NULL_HANDLE);
       vkCmdPushConstants(a_cmdBuff,
-        m_ssaoPipeline.getVkPipelineLayout(),
+        (*ssaoPipe).getVkPipelineLayout(),
         VK_SHADER_STAGE_COMPUTE_BIT,
         0,
         sizeof(pushConst2M),
         &pushConst2M);
+      vkCmdDispatch(a_cmdBuff, m_width, m_height, 1);
+    }
+
+    if (m_useBlur)
+    {
+      auto blurInfo = etna::get_shader_program("blur");
+
+      result      = &blurredSsaoRes;
+      currentSsao = &blurredSsaoRes;
+
+      auto set = etna::create_descriptor_set(blurInfo.getDescriptorLayoutId(0),
+        a_cmdBuff,
+        { etna::Binding{ 0,
+            mainViewDepth.genBinding(
+              defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal) },
+          etna::Binding{ 1,
+            ssaoRes.genBinding(
+              defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal) },
+          etna::Binding{ 2,
+            blurredSsaoRes.genBinding(
+              defaultSampler.get(), vk::ImageLayout::eGeneral) } });
+
+      VkDescriptorSet vkSet = set.getVkSet();
+
+      vkCmdBindPipeline(a_cmdBuff,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        m_blurredSsaoPipeline.getVkPipeline());
+      vkCmdBindDescriptorSets(a_cmdBuff,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        m_blurredSsaoPipeline.getVkPipelineLayout(),
+        0,
+        1,
+        &vkSet,
+        0,
+        VK_NULL_HANDLE);
+      vkCmdPushConstants(a_cmdBuff,
+        m_blurredSsaoPipeline.getVkPipelineLayout(),
+        VK_SHADER_STAGE_COMPUTE_BIT,
+        0,
+        sizeof(pushConst2M),
+        &pushConst2M);
+      vkCmdDispatch(a_cmdBuff, m_width, m_height, 1);
+    }
+
+    if (m_applySSAO)
+    {
+      auto applyInfo = etna::get_shader_program("apply");
+
+      result = &appliedSsaoRes;
+
+      auto set = etna::create_descriptor_set(applyInfo.getDescriptorLayoutId(0),
+        a_cmdBuff,
+        { etna::Binding{ 0,
+            mainView.genBinding(
+              defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal) },
+          etna::Binding{ 1,
+            (*currentSsao)
+              .genBinding(defaultSampler.get(),
+                vk::ImageLayout::eShaderReadOnlyOptimal) },
+          etna::Binding{ 2,
+            appliedSsaoRes.genBinding(
+              defaultSampler.get(), vk::ImageLayout::eGeneral) } });
+
+      VkDescriptorSet vkSet = set.getVkSet();
+
+      vkCmdBindPipeline(a_cmdBuff,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        m_appliedSsaoPipeline.getVkPipeline());
+      vkCmdBindDescriptorSets(a_cmdBuff,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        m_appliedSsaoPipeline.getVkPipelineLayout(),
+        0,
+        1,
+        &vkSet,
+        0,
+        VK_NULL_HANDLE);
       vkCmdDispatch(a_cmdBuff, m_width, m_height, 1);
     }
 
@@ -291,7 +399,7 @@ void SimpleShadowmapRender::BuildCommandBufferSimple(VkCommandBuffer a_cmdBuff, 
             1 } },
       };
       vkCmdBlitImage(a_cmdBuff,
-        ssaoRes.get(),
+        (*result).get(),
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         a_targetImage,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

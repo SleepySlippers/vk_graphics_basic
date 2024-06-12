@@ -1,0 +1,26 @@
+#version 450
+
+// layout( local_size_x = 1, local_size_y = 1) in;
+
+layout(binding = 0, set = 0) uniform sampler2D mainView;
+layout(binding = 1, set = 0) uniform sampler2D ssaoRes;
+layout(binding = 2, set = 0) writeonly uniform image2D appliedSsaoRes;
+
+void main(){
+    ivec2 pixelLocation = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 resultSize = ivec2(imageSize(appliedSsaoRes));
+
+    if (pixelLocation.x >= resultSize.x || pixelLocation.y >= resultSize.y)
+    {
+        return;
+    }
+
+    vec2 uv = (vec2(pixelLocation) + 0.5) / vec2(resultSize);
+
+    vec4 initial = texture(mainView, uv);
+
+    vec4 val = initial;
+    val.xyz *= texture(ssaoRes, uv).x;
+
+    imageStore(appliedSsaoRes, pixelLocation, val);
+}

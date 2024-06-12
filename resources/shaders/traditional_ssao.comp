@@ -17,9 +17,8 @@ layout (push_constant) uniform params_t
     mat4 mModel;
 } params;
 
-layout(binding = 0, set = 0) uniform sampler2D mainView;
-layout(binding = 1, set = 0) uniform sampler2D mainViewDepth;
-layout(binding = 2, set = 0) writeonly uniform image2D res;
+layout(binding = 0, set = 0) uniform sampler2D mainViewDepth;
+layout(binding = 1, set = 0) writeonly uniform image2D res;
 
 vec3 getWorldPos(vec2 uv) {
     vec4 viewSpace = inverse(params.mProjView) * vec4(uv * 2. - 1., texture(mainViewDepth, uv).x, 1.);
@@ -57,13 +56,11 @@ void main(){
 
     vec2 pixOffset = vec2(1.) / vec2(resultSize);
 
-    vec4 initial = texture(mainView, uv);
-
     vec3 centerPos = getWorldPos(uv);
 
     if (texture(mainViewDepth, uv).x > 0.99) {
         // too far
-        imageStore(res, pixelLocation, initial);
+        imageStore(res, pixelLocation, vec4(1.));
         return;
     }
 
@@ -113,8 +110,5 @@ void main(){
     
 // #endif
 
-    vec4 val = initial;
-    val = vec4(ssaoValue);
-
-    imageStore(res, pixelLocation, val);
+    imageStore(res, pixelLocation, vec4(ssaoValue));
 }
