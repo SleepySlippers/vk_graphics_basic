@@ -43,6 +43,7 @@ void main(){
     vec3 centerPos = getWorldPos(uv);
     vec4 camTmp = inverse(params.mProjView) * vec4(0.0, 0.0, 0.0, 1.0);
     vec3 camPos = camTmp.xyz / camTmp.w;
+    float dist = length(camPos - centerPos);
     vec3 toCamDir = normalize(camPos - centerPos);
 
     // here is my approach to calculate SSAO
@@ -63,8 +64,8 @@ void main(){
     }
     float ssaoValue = angleSum / (W * W - 1) / HALF_PI;
 #else
-    const int SAMP_NUM = 6; 
-    const float R = SAMP_NUM / PI / 2.;
+    const int SAMP_NUM = 12; 
+    const float R = SAMP_NUM / PI / 2. / (dist / 20.);
     vec2 initialOffset = pixOffset * R / SQRT2;
     float angleSum = 0.;
     for (int i = 0; i < SAMP_NUM; ++i) {
@@ -77,5 +78,8 @@ void main(){
     
 #endif
 
-    imageStore(res, pixelLocation, initial * ssaoValue);
+    vec4 val = initial;
+    val *= vec4(ssaoValue);
+
+    imageStore(res, pixelLocation, val);
 }
